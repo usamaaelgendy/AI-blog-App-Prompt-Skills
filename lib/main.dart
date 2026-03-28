@@ -44,3 +44,28 @@ class BlogApp extends StatelessWidget {
 //    - Follow the same error handling
 //    - Use the same theme and design system
 //    - Don't Add new Packages
+
+
+// <role>
+// Your are a senior flutter developer specialied with clean arhctecture
+// </role>
+// <context>
+//     You are working on a flutter blog app using supabase as the backend.
+//     Archtecture: Clean Archtecture with 3 layers (data, domain, persentation)
+// </context>
+//
+// <tasks>
+//    - Add Search screen functionallity in PostListScreen
+//    - Implement Search functionality using supabase search method
+//    - Search Result must be show in the existing ListView
+// </tasks>
+//
+//     <constraints>
+//         - Follow the same error handling
+//         - Use the same theme and design system
+//         - Don't Add new Packages
+//     </constraints>
+//
+// <error>
+// null pointer exception stack overflow
+// </error>
