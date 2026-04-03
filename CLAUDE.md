@@ -241,6 +241,33 @@ Each feature's presentation layer follows the BLoC pattern with separated event 
 - Model `fromJson()` maps snake_case keys to camelCase Dart fields
 - Model `toJson()` maps camelCase fields back to snake_case keys
 
+## Do's and Don'ts
+
+### Don'ts
+
+- **Don't add new packages** to `pubspec.yaml` without asking first. Solve problems with the existing dependencies.
+- **Don't break the layer boundaries.** Presentation must never import from `data/`. Data and presentation depend on domain, not on each other.
+- **Don't put business logic in the presentation layer.** Validation and data transformations belong in use cases or repositories, not in BLoCs or widgets.
+- **Don't throw exceptions from repositories.** Repositories must catch exceptions and return `Either<Failure, T>` — never let exceptions leak upward.
+- **Don't add framework imports to the domain layer.** Entities, repository interfaces, and use cases must stay pure Dart.
+- **Don't skip the model/entity separation.** Never use data models directly in the presentation layer. Always convert via `toEntity()`.
+- **Don't modify `core/` files** without discussing the impact, since they affect all features.
+- **Don't create files outside the established folder structure.** New code goes into the appropriate layer within `lib/features/<feature>/` or `lib/core/`.
+- **Don't hardcode strings** for error messages in the UI. Use failure messages from the domain layer.
+- **Don't commit Supabase credentials or API keys.** Keep placeholders in source code.
+
+### Do's
+
+- **Do follow the existing error handling flow.** DataSource throws → Repository catches and returns Either → BLoC folds → Screen renders.
+- **Do create abstract interfaces** before concrete implementations. Always define the contract first (`PostsDataSource`), then implement (`PostsDataSourceImpl`).
+- **Do use constructor injection** for all dependencies. Register them in `core/di/` via get_it.
+- **Do keep use cases single-purpose.** One public `call()` method per use case. Add a params class if the use case needs multiple inputs (see `LoginParams`).
+- **Do follow the naming conventions** documented above. Consistency across the codebase is critical.
+- **Do write immutable entities.** Use `final` fields and `const` constructors in domain entities.
+- **Do run `flutter analyze`** before considering work complete to catch lint issues.
+- **Do keep widgets small and reusable.** Extract repeated UI patterns into `presentation/widgets/`.
+- **Do use `BlocBuilder`** for reactive UI and `BlocListener` for side effects (navigation, snackbars).
+
 ## Tech Stack
 
 - Flutter 3.24+ / Dart 3.5+
