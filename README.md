@@ -1,6 +1,6 @@
 # Blog App — Educational Project
 
-> This is an educational project for the **Developer X AI** course. The code serves as a reference for the examples in Section 3: Prompt Skill.
+> This is an educational project for the **Code Smarter With AI** course. The code serves as a reference for the examples in Section 3: Prompt Skill.
 
 ## Purpose
 
