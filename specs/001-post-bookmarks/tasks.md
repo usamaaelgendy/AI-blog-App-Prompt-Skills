@@ -27,12 +27,12 @@
 
 **CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T002 [P] Create Bookmark entity with fields `id`, `postId`, `userId`, `createdAt` (all final, const constructor) in `lib/features/bookmarks/domain/entities/bookmark.dart`
+- [ ] T002 [P] Create Bookmark entity with fields `id`, `postId`, `userId`, `createdAt`, `post` (Post entity, from joined query) — all final, const constructor in `lib/features/bookmarks/domain/entities/bookmark.dart`
 - [ ] T003 [P] Create BookmarksRepository abstract interface with methods: `getBookmarks`, `addBookmark`, `removeBookmark`, `isBookmarked`, `getBookmarkStatuses` — all returning `Either<Failure, T>` in `lib/features/bookmarks/domain/repositories/bookmarks_repository.dart`
-- [ ] T004 [P] Create BookmarkModel with `fromJson()`, `toJson()`, `toEntity()` mapping snake_case JSON keys (`user_id`, `post_id`, `created_at`) to camelCase Dart fields in `lib/features/bookmarks/data/models/bookmark_model.dart`
+- [ ] T004 [P] Create BookmarkModel with `fromJson()`, `toJson()`, `toEntity()` mapping snake_case JSON keys (`user_id`, `post_id`, `created_at`) to camelCase Dart fields — `fromJson` must also parse nested `json['posts']` via `PostModel.fromJson()` to populate the `post` field for joined queries in `lib/features/bookmarks/data/models/bookmark_model.dart`
 - [ ] T005 [P] Create BookmarksDataSource abstract interface with methods: `fetchBookmarks`, `addBookmark`, `removeBookmark`, `isBookmarked`, `getBookmarkStatuses` in `lib/features/bookmarks/data/datasources/bookmarks_datasource.dart`
 - [ ] T006 Create BookmarksDataSourceImpl with SupabaseClient injection implementing all BookmarksDataSource methods — `fetchBookmarks` uses `.select('*, posts(*)').eq('user_id', userId).order('created_at').range(offset, offset+limit-1)`, `addBookmark` inserts row, `removeBookmark` deletes by user_id+post_id, `isBookmarked` checks existence, `getBookmarkStatuses` batch checks post IDs — catch `PostgrestException` and throw `ServerException` in `lib/features/bookmarks/data/datasources/bookmarks_datasource_impl.dart`
-- [ ] T007 Create BookmarksRepositoryImpl with BookmarksDataSource injection, catch `ServerException` from datasource and return `Left(ServerFailure)`, convert BookmarkModel to Bookmark via `toEntity()` in `lib/features/bookmarks/data/repositories/bookmarks_repository_impl.dart`
+- [ ] T007 Create BookmarksRepositoryImpl with BookmarksDataSource injection, catch `ServerException` from datasource and return `Left(ServerFailure)`, convert BookmarkModel to Bookmark via `toEntity()`, filter out any bookmarks where joined post data is null (orphaned bookmark from deleted post) in `lib/features/bookmarks/data/repositories/bookmarks_repository_impl.dart`
 - [ ] T008 Register data-layer dependencies in DI container: `BookmarksDataSource` → `BookmarksDataSourceImpl(SupabaseClient)`, `BookmarksRepository` → `BookmarksRepositoryImpl(BookmarksDataSource)` in `lib/core/di/injection_container.dart`
 
 **Checkpoint**: Domain and data layers complete — user story implementation can begin
@@ -53,9 +53,10 @@
 - [ ] T012 [P] [US1] Create BookmarkToggleState with `Map<String, bool> statuses` tracking bookmark status per postId, plus `String? errorPostId` and `String? errorMessage` for revert feedback in `lib/features/bookmarks/presentation/bloc/bookmark_toggle_state.dart`
 - [ ] T013 [US1] Create BookmarkToggleBloc: on `ToggleBookmarkEvent` — emit optimistic toggled state immediately, call `ToggleBookmark` use case, on failure revert state and set error fields; on `LoadBookmarkStatuses` — call `getBookmarkStatuses` and populate the statuses map in `lib/features/bookmarks/presentation/bloc/bookmark_toggle_bloc.dart`
 - [ ] T014 [US1] Create BookmarkIconButton stateless widget: uses `BlocBuilder<BookmarkToggleBloc, BookmarkToggleState>` to read bookmark status for its `postId`, renders filled/outlined bookmark icon, dispatches `ToggleBookmarkEvent` on tap, shows error snackbar via `BlocListener` on revert in `lib/features/bookmarks/presentation/widgets/bookmark_icon_button.dart`
-- [ ] T015 [US1] Integrate BookmarkIconButton into existing PostCard widget — add as trailing widget in the ListTile, pass `post.id` in `lib/features/posts/presentation/widgets/post_card.dart`
-- [ ] T016 [US1] Register US1 dependencies in DI: `ToggleBookmark(BookmarksRepository)`, `IsBookmarked(BookmarksRepository)`, `BookmarkToggleBloc(ToggleBookmark, IsBookmarked, BookmarksRepository)` in `lib/core/di/injection_container.dart`
-- [ ] T017 [US1] Provide BookmarkToggleBloc via BlocProvider at the app level (or above PostsListScreen) so it is accessible from PostCard — update widget tree in `lib/main.dart`
+- [ ] T015 [US1] Add auth guard to BookmarkIconButton — on tap, check `Supabase.instance.client.auth.currentUser`; if null, navigate to LoginScreen instead of dispatching toggle event (FR-008) in `lib/features/bookmarks/presentation/widgets/bookmark_icon_button.dart`
+- [ ] T016 [US1] Integrate BookmarkIconButton into existing PostCard widget — add as trailing widget in the ListTile, pass `post.id` in `lib/features/posts/presentation/widgets/post_card.dart`
+- [ ] T017 [US1] Register US1 dependencies in DI: `ToggleBookmark(BookmarksRepository)`, `IsBookmarked(BookmarksRepository)`, `BookmarkToggleBloc(ToggleBookmark, IsBookmarked, BookmarksRepository)` in `lib/core/di/injection_container.dart`
+- [ ] T018 [US1] Provide BookmarkToggleBloc via BlocProvider at the app level (or above PostsListScreen) so it is accessible from PostCard — update widget tree in `lib/main.dart`
 
 **Checkpoint**: Users can bookmark/unbookmark posts from the posts list with optimistic UI. MVP is functional.
 
@@ -69,13 +70,13 @@
 
 ### Implementation for User Story 2
 
-- [ ] T018 [US2] Create GetBookmarks use case with `GetBookmarksParams(userId, offset, limit)` delegating to `BookmarksRepository.getBookmarks()` in `lib/features/bookmarks/domain/usecases/get_bookmarks.dart`
-- [ ] T019 [P] [US2] Create BookmarksEvent classes: `LoadBookmarks`, `LoadMoreBookmarks` in `lib/features/bookmarks/presentation/bloc/bookmarks_event.dart`
-- [ ] T020 [P] [US2] Create BookmarksState classes: `BookmarksInitial`, `BookmarksLoading`, `BookmarksLoaded(posts, hasReachedMax)`, `BookmarksError(message)` in `lib/features/bookmarks/presentation/bloc/bookmarks_state.dart`
-- [ ] T021 [US2] Create BookmarksBloc: on `LoadBookmarks` — emit loading, fetch first page (20 items), emit loaded; on `LoadMoreBookmarks` — append next page, set `hasReachedMax` when fewer than 20 returned in `lib/features/bookmarks/presentation/bloc/bookmarks_bloc.dart`
-- [ ] T022 [US2] Create BookmarksScreen with `BlocBuilder<BookmarksBloc, BookmarksState>`: loading state shows `CircularProgressIndicator`, loaded state shows `ListView.builder` with scroll listener for infinite scroll trigger, empty state shows message with "Browse posts" suggestion, error state shows error message in `lib/features/bookmarks/presentation/screens/bookmarks_screen.dart`
-- [ ] T023 [US2] Add bookmarks screen navigation entry point — add bookmarks icon to app navigation (bottom nav bar or drawer) that navigates to BookmarksScreen in the appropriate navigation widget
-- [ ] T024 [US2] Register US2 dependencies in DI: `GetBookmarks(BookmarksRepository)`, `BookmarksBloc(GetBookmarks)` — provide BookmarksBloc via BlocProvider on the bookmarks screen in `lib/core/di/injection_container.dart`
+- [ ] T019 [US2] Create GetBookmarks use case with `GetBookmarksParams(userId, offset, limit)` delegating to `BookmarksRepository.getBookmarks()` in `lib/features/bookmarks/domain/usecases/get_bookmarks.dart`
+- [ ] T020 [P] [US2] Create BookmarksEvent classes: `LoadBookmarks`, `LoadMoreBookmarks` in `lib/features/bookmarks/presentation/bloc/bookmarks_event.dart`
+- [ ] T021 [P] [US2] Create BookmarksState classes: `BookmarksInitial`, `BookmarksLoading`, `BookmarksLoaded(posts, hasReachedMax)`, `BookmarksError(message)` in `lib/features/bookmarks/presentation/bloc/bookmarks_state.dart`
+- [ ] T022 [US2] Create BookmarksBloc: on `LoadBookmarks` — emit loading, fetch first page (20 items), emit loaded; on `LoadMoreBookmarks` — append next page, set `hasReachedMax` when fewer than 20 returned in `lib/features/bookmarks/presentation/bloc/bookmarks_bloc.dart`
+- [ ] T023 [US2] Create BookmarksScreen with `BlocBuilder<BookmarksBloc, BookmarksState>`: loading state shows `CircularProgressIndicator`, loaded state shows `ListView.builder` with scroll listener for infinite scroll trigger, empty state shows message with "Browse posts" suggestion, error state shows error message in `lib/features/bookmarks/presentation/screens/bookmarks_screen.dart`
+- [ ] T024 [US2] Add bookmarks screen navigation entry point — add bookmarks icon to app navigation (bottom nav bar or drawer) that navigates to BookmarksScreen in the appropriate navigation widget
+- [ ] T025 [US2] Register US2 dependencies in DI: `GetBookmarks(BookmarksRepository)`, `BookmarksBloc(GetBookmarks)` — provide BookmarksBloc via BlocProvider on the bookmarks screen in `lib/core/di/injection_container.dart`
 
 **Checkpoint**: Users can view all their bookmarks on a dedicated screen with pagination. US1 + US2 both work independently.
 
@@ -89,9 +90,9 @@
 
 ### Implementation for User Story 3
 
-- [ ] T025 [US3] Add BookmarkToggleBloc listener in BookmarksBloc — when a bookmark is toggled off (removed), remove that post from the loaded bookmarks list and re-emit state; if list becomes empty, transition to empty state in `lib/features/bookmarks/presentation/bloc/bookmarks_bloc.dart`
-- [ ] T026 [US3] Integrate BookmarkIconButton into each list item on the bookmarks screen so users can unbookmark directly from the list in `lib/features/bookmarks/presentation/screens/bookmarks_screen.dart`
-- [ ] T027 [US3] Ensure BookmarkToggleBloc is accessible on the bookmarks screen — verify BlocProvider scope covers both PostCard and BookmarksScreen in `lib/main.dart`
+- [ ] T026 [US3] Add BookmarkToggleBloc listener in BookmarksBloc — when a bookmark is toggled off (removed), remove that post from the loaded bookmarks list and re-emit state; if list becomes empty, transition to empty state in `lib/features/bookmarks/presentation/bloc/bookmarks_bloc.dart`
+- [ ] T027 [US3] Integrate BookmarkIconButton into each list item on the bookmarks screen so users can unbookmark directly from the list in `lib/features/bookmarks/presentation/screens/bookmarks_screen.dart`
+- [ ] T028 [US3] Ensure BookmarkToggleBloc is accessible on the bookmarks screen — verify BlocProvider scope covers both PostCard and BookmarksScreen in `lib/main.dart`
 
 **Checkpoint**: Full bookmark lifecycle works — add, view, remove. All three user stories functional.
 
@@ -101,9 +102,9 @@
 
 **Purpose**: Verification, cleanup, and cross-screen consistency
 
-- [ ] T028 [P] Verify cross-screen bookmark state synchronization — when unbookmarking from bookmarks screen, the PostCard icon in posts list should also reflect the change (both read from same BookmarkToggleBloc state)
-- [ ] T029 [P] Run `flutter analyze` and fix any lint issues across all new files
-- [ ] T030 Run quickstart.md validation: verify Supabase table schema matches data-model.md, verify all DI registrations resolve, verify full bookmark workflow end-to-end
+- [ ] T029 [P] Verify cross-screen bookmark state synchronization — when unbookmarking from bookmarks screen, the PostCard icon in posts list should also reflect the change (both read from same BookmarkToggleBloc state)
+- [ ] T030 [P] Run `flutter analyze` and fix any lint issues across all new files
+- [ ] T031 Run quickstart.md validation: verify Supabase table schema matches data-model.md, verify all DI registrations resolve, verify full bookmark workflow end-to-end
 
 ---
 
@@ -153,9 +154,9 @@ US1 (P1)  US2 (P2)    │
 
 **Phase 3 (US1)**: T009, T010, T011, T012 can all run in parallel (independent files)
 
-**Phase 4 (US2)**: T019, T020 can run in parallel (events + states are independent files)
+**Phase 4 (US2)**: T020, T021 can run in parallel (events + states are independent files)
 
-**Phase 6 (Polish)**: T028, T029 can run in parallel
+**Phase 6 (Polish)**: T029, T030 can run in parallel
 
 ---
 
@@ -171,9 +172,10 @@ T012: Create BookmarkToggleState in presentation/bloc/bookmark_toggle_state.dart
 # Sequential — depends on batch 1:
 T013: Create BookmarkToggleBloc (needs T009, T010, T011, T012)
 T014: Create BookmarkIconButton widget (needs T013)
-T015: Integrate into PostCard (needs T014)
-T016: Register DI (needs T009, T010, T013)
-T017: Provide BlocProvider in app (needs T013)
+T015: Add auth guard to BookmarkIconButton (needs T014)
+T016: Integrate into PostCard (needs T014)
+T017: Register DI (needs T009, T010, T013)
+T018: Provide BlocProvider in app (needs T013)
 ```
 
 ---
