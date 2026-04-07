@@ -274,3 +274,10 @@ Each feature's presentation layer follows the BLoC pattern with separated event 
 - flutter_bloc 8.1.6, dartz 0.10.1, supabase_flutter, dio 5.7.0
 - get_it 8.0.2 for DI, shared_preferences for local storage
 - mocktail 1.0.4 for test mocks
+
+## Active Technologies
+- Dart 3.5+ / Flutter 3.24+ + flutter_bloc 8.1.6, dartz 0.10.1, supabase_flutter, get_it 8.0.2, mocktail 1.0.4 (001-post-bookmarks)
+- Supabase (PostgreSQL via Postgrest) — new `bookmarks` table (001-post-bookmarks)
+
+## Recent Changes
+- 001-post-bookmarks: Added Dart 3.5+ / Flutter 3.24+ + flutter_bloc 8.1.6, dartz 0.10.1, supabase_flutter, get_it 8.0.2, mocktail 1.0.4
