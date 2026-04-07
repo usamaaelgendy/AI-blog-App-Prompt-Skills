@@ -5,8 +5,15 @@
 **Status**: Draft  
 **Input**: User description: "Add Bookmark to blog posts. A logged-in user can save any post for later, remove it at any time, and open a dedicated bookmarks screen that lists all saved posts."
 
+## Clarifications
+
+### Session 2026-04-07
+
+- Q: Should bookmark UI updates be optimistic or server-confirmed? → A: Optimistic — update UI immediately, revert on server failure with an error message.
+- Q: How should the bookmarks list handle a growing collection? → A: Paginated with infinite scroll — load 20 at a time, fetch more as user scrolls near the bottom.
+- Q: How does the user remove a bookmark from the bookmarks screen? → A: Tap the bookmark icon on the list item — same toggle interaction used on the posts list and detail views.
+
 ## User Scenarios & Testing *(mandatory)*
-s
 ### User Story 1 - Bookmark a Post (Priority: P1)
 
 A logged-in user is browsing the posts list or reading a post and wants to save it for later. They tap a bookmark icon on the post, and the post is immediately marked as bookmarked with visual confirmation.
@@ -50,7 +57,7 @@ A logged-in user decides they no longer need a previously saved post. They can r
 **Acceptance Scenarios**:
 
 1. **Given** a logged-in user viewing a bookmarked post, **When** they tap the bookmark icon to remove the bookmark, **Then** the post is removed from their bookmarks and the icon updates to the unbookmarked state.
-2. **Given** a logged-in user on the bookmarks screen, **When** they remove a bookmark from a post in the list, **Then** the post is removed from the bookmarks list immediately.
+2. **Given** a logged-in user on the bookmarks screen, **When** they tap the bookmark icon on a post in the list to remove it, **Then** the post is removed from the bookmarks list immediately (optimistic update).
 3. **Given** a logged-in user who removes all bookmarks, **When** they view the bookmarks screen, **Then** the empty state message is displayed.
 
 ---
@@ -58,7 +65,7 @@ A logged-in user decides they no longer need a previously saved post. They can r
 ### Edge Cases
 
 - What happens when a user bookmarks a post that is subsequently deleted by the author? The bookmark entry is removed and the post no longer appears on the bookmarks screen.
-- What happens when a user tries to bookmark a post while offline or during a network failure? The user receives an error message and the bookmark state does not change.
+- What happens when a user tries to bookmark a post while offline or during a network failure? The UI optimistically shows the change, then reverts to the previous state and displays an error message when the server operation fails.
 - What happens if a user rapidly taps the bookmark icon multiple times? The system processes only the final intended state (bookmarked or unbookmarked) and prevents duplicate entries.
 
 ## Requirements *(mandatory)*
@@ -67,11 +74,11 @@ A logged-in user decides they no longer need a previously saved post. They can r
 
 - **FR-001**: System MUST allow a logged-in user to bookmark any post from the posts list or post detail view.
 - **FR-002**: System MUST allow a logged-in user to remove a bookmark from any previously bookmarked post.
-- **FR-003**: System MUST provide a dedicated bookmarks screen accessible from the app navigation that lists all posts the user has bookmarked.
+- **FR-003**: System MUST provide a dedicated bookmarks screen accessible from the app navigation that lists the user's bookmarked posts with paginated infinite scroll (20 posts per page, loading more as the user scrolls near the bottom).
 - **FR-004**: System MUST persist bookmarks so they are available across sessions.
 - **FR-005**: System MUST display a clear visual indicator on posts that are currently bookmarked by the user.
 - **FR-006**: System MUST display an empty state on the bookmarks screen when the user has no saved posts.
-- **FR-007**: System MUST update the bookmark state immediately in the UI when a user adds or removes a bookmark.
+- **FR-007**: System MUST use optimistic UI updates for bookmark actions — the bookmark state updates immediately in the UI, and reverts with an error message if the server operation fails.
 - **FR-008**: System MUST only allow authenticated users to bookmark posts. Unauthenticated users attempting to bookmark should be directed to log in.
 - **FR-009**: System MUST handle the case where a bookmarked post is deleted, ensuring the orphaned bookmark does not cause errors.
 - **FR-010**: System MUST allow navigation from a bookmarked post in the bookmarks list to the full post view.
