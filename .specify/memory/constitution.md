@@ -1,50 +1,181 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+  Sync Impact Report
+  ==================
+  Version change: N/A (template) → 1.0.0
+  Modified principles: N/A (initial ratification)
+  Added sections:
+    - Core Principles (5 principles)
+    - Architecture Constraints
+    - Development Workflow
+    - Governance
+  Removed sections: None
+  Templates requiring updates:
+    - .specify/templates/plan-template.md — ✅ aligned
+      (Constitution Check section already generic; principles map to gates)
+    - .specify/templates/spec-template.md — ✅ aligned
+      (Requirements and success criteria compatible with principles)
+    - .specify/templates/tasks-template.md — ✅ aligned
+      (Phase structure supports layer-ordered implementation)
+  Follow-up TODOs: None
+-->
+
+# Blog App Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Clean Architecture
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+Every feature MUST be organized into three layers with a strict
+dependency direction: **Presentation → Domain ← Data**.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+- Presentation MUST NOT import from `data/`.
+- Data and Presentation depend on Domain, never on each other.
+- Each feature is self-contained under `lib/features/<feature>/`
+  with `data/`, `domain/`, and `presentation/` sub-directories.
+- Shared, non-feature code lives in `lib/core/` only.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+**Rationale**: Enforcing layer boundaries keeps business logic
+portable, testable, and independent of framework or data-source
+changes.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### II. Contract-First Design
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+Every boundary MUST define an abstract interface before any
+concrete implementation is written.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+- Data sources: `<Name>DataSource` (abstract) →
+  `<Name>DataSourceImpl` (concrete).
+- Repositories: `<Name>Repository` (abstract) →
+  `<Name>RepositoryImpl` (concrete).
+- Core utilities: `ApiClient` (abstract) → `ApiClientImpl`
+  (concrete).
+- All concrete implementations MUST be registered in `core/di/`
+  via get_it and resolved through constructor injection.
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+**Rationale**: Coding against abstractions enables substitution
+for testing and future backend changes without touching consumers.
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+### III. Type-Safe Error Handling
+
+Errors MUST flow through a structured pipeline; exceptions MUST
+NOT leak across layer boundaries.
+
+- Data sources throw `ServerException` or `CacheException`.
+- Repositories catch those exceptions and return
+  `Either<Failure, T>` (via dartz).
+- Use cases pass the `Either` through or add
+  `ValidationFailure`.
+- BLoCs fold the `Either` into success or error states.
+- Screens render based on the emitted state.
+- Repositories MUST NEVER throw; they MUST always return
+  `Either`.
+
+**Rationale**: A single, predictable error path prevents
+unhandled crashes and keeps error presentation consistent across
+the app.
+
+### IV. Pure Domain Layer
+
+The domain layer MUST remain free of framework and infrastructure
+concerns.
+
+- Entities use `final` fields and `const` constructors; no
+  serialization logic.
+- Models (data layer) mirror entities and provide `fromJson()`,
+  `toJson()`, and `toEntity()`. Models MUST NOT appear in
+  presentation code.
+- Use cases expose a single public `call()` method. One use case
+  = one business action.
+- No Flutter, Supabase, Dio, or other package imports are
+  permitted in `domain/`.
+
+**Rationale**: A pure domain layer can be reasoned about, tested,
+and reused without any runtime dependencies.
+
+### V. Dependency Inversion
+
+All runtime dependencies MUST be injected, never instantiated
+inline.
+
+- Constructor injection is the sole mechanism for providing
+  dependencies to classes.
+- `core/di/` registers every concrete implementation with
+  get_it.
+- No class may construct its own collaborators via `new` or
+  static access (except factory constructors for deserialization
+  in models).
+
+**Rationale**: Explicit injection makes the dependency graph
+visible, testable, and reconfigurable without code changes.
+
+## Architecture Constraints
+
+- **No unauthorized packages.** New dependencies MUST NOT be
+  added to `pubspec.yaml` without prior approval. Solve problems
+  with the existing stack first.
+- **Model/Entity separation is mandatory.** Data models
+  (`*_model.dart`) handle serialization; domain entities handle
+  business identity. Presentation code MUST only use entities.
+- **No business logic in presentation.** Validation, data
+  transformation, and decision-making belong in use cases or
+  repositories, not in BLoCs or widgets.
+- **No hardcoded credentials.** Supabase URLs, API keys, and
+  secrets MUST remain as placeholders in source code.
+- **Core is shared infrastructure.** Changes to `lib/core/`
+  affect all features and MUST be discussed before implementation.
+- **File placement.** New code MUST go into
+  `lib/features/<feature>/` or `lib/core/`. No top-level ad-hoc
+  directories.
+- **Naming conventions.** Files use `snake_case`, classes use
+  `PascalCase`, methods/variables use `camelCase`. Suffixes
+  (`Model`, `Impl`, `Bloc`, `Screen`, `Failure`, `Exception`)
+  MUST follow the documented patterns in CLAUDE.md.
+
+## Development Workflow
+
+- **Static analysis.** `flutter analyze` MUST pass before work
+  is considered complete.
+- **State management.** All features use the BLoC pattern with
+  separated event and state classes. `BlocBuilder` for reactive
+  UI; `BlocListener` for side effects.
+- **Widget granularity.** Repeated UI patterns MUST be extracted
+  into `presentation/widgets/`.
+- **Real-time updates.** Features requiring live data MUST
+  subscribe to Supabase real-time streams and dispatch update
+  events through the BLoC.
+- **Error messages.** UI MUST NOT hardcode error strings; use
+  failure messages propagated from the domain layer.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This constitution is the authoritative source of architectural
+and process rules for the Blog App project. It supersedes any
+ad-hoc decisions or undocumented conventions.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+### Amendment Procedure
+
+1. Propose the change with a rationale and impact assessment.
+2. Update this document and increment the version per the
+   versioning policy below.
+3. Run the consistency propagation checklist (plan, spec, tasks,
+   and command templates) and update any affected artifacts.
+4. Record the change in the Sync Impact Report comment at the
+   top of this file.
+
+### Versioning Policy
+
+- **MAJOR**: Removal or backward-incompatible redefinition of a
+  principle.
+- **MINOR**: New principle or materially expanded guidance added.
+- **PATCH**: Clarifications, wording fixes, non-semantic
+  refinements.
+
+### Compliance
+
+- All implementation plans MUST include a Constitution Check gate
+  that verifies alignment with these principles before design
+  proceeds.
+- Code reviews MUST verify compliance with layer boundaries,
+  error handling flow, and naming conventions.
+
+**Version**: 1.0.0 | **Ratified**: 2026-04-07 | **Last Amended**: 2026-04-07
