@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'core/di/injection_container.dart';
 import 'core/theme/app_theme.dart';
 import 'features/bookmarks/presentation/bloc/bookmark_toggle_bloc.dart';
@@ -74,8 +75,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-
-
 // 1 - Role
 //    -  Your are a senior flutter developer specialied with clean arhctecture
 // 2 - Context
@@ -89,7 +88,6 @@ class _HomeScreenState extends State<HomeScreen> {
 //    - Follow the same error handling
 //    - Use the same theme and design system
 //    - Don't Add new Packages
-
 
 // <role>
 // Your are a senior flutter developer specialied with clean arhctecture
@@ -114,6 +112,3 @@ class _HomeScreenState extends State<HomeScreen> {
 // <error>
 // null pointer exception stack overflow
 // </error>
-
-
-

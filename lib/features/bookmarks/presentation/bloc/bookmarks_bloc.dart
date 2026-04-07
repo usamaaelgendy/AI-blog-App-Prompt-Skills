@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../domain/usecases/get_bookmarks.dart';
 import 'bookmarks_event.dart';
 import 'bookmarks_state.dart';
@@ -75,9 +76,7 @@ class BookmarksBloc extends Bloc<BookmarksEvent, BookmarksState> {
     final currentState = state;
     if (currentState is! BookmarksLoaded) return;
 
-    final updatedBookmarks = currentState.bookmarks
-        .where((b) => b.postId != event.postId)
-        .toList();
+    final updatedBookmarks = currentState.bookmarks.where((b) => b.postId != event.postId).toList();
 
     emit(BookmarksLoaded(
       updatedBookmarks,
