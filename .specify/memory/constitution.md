@@ -1,21 +1,21 @@
 <!--
   Sync Impact Report
-  ===================
-  Version change: (none) → 1.0.0 (initial population)
-  Modified principles: N/A (first population from template)
+  ==================
+  Version change: N/A (template) → 1.0.0
+  Modified principles: N/A (initial ratification)
   Added sections:
-    - 5 Core Principles derived from CLAUDE.md
-    - Technical Constraints section
-    - Development Workflow section
-    - Governance section
+    - Core Principles (5 principles)
+    - Architecture Constraints
+    - Development Workflow
+    - Governance
   Removed sections: None
   Templates requiring updates:
-    - .specify/templates/plan-template.md — ✅ aligned (Constitution Check
-      section references gates from constitution)
-    - .specify/templates/spec-template.md — ✅ aligned (requirements use
-      MUST language consistent with constitution)
-    - .specify/templates/tasks-template.md — ✅ aligned (phase structure
-      supports story-based delivery)
+    - .specify/templates/plan-template.md — ✅ aligned
+      (Constitution Check section already generic; principles map to gates)
+    - .specify/templates/spec-template.md — ✅ aligned
+      (Requirements and success criteria compatible with principles)
+    - .specify/templates/tasks-template.md — ✅ aligned
+      (Phase structure supports layer-ordered implementation)
   Follow-up TODOs: None
 -->
 
@@ -23,139 +23,159 @@
 
 ## Core Principles
 
-### I. Clean Architecture Layer Boundaries
+### I. Clean Architecture
 
-Every feature module MUST be organized into three layers with a strict
+Every feature MUST be organized into three layers with a strict
 dependency direction: **Presentation → Domain ← Data**.
 
-- Presentation MUST NOT import from `data/` directly.
-- Data and Presentation both depend on Domain; they MUST NOT depend on
-  each other.
-- Each feature is self-contained within `lib/features/<feature>/` with
-  its own `data/`, `domain/`, and `presentation/` subdirectories.
-- New code MUST NOT be created outside the established folder structure.
+- Presentation MUST NOT import from `data/`.
+- Data and Presentation depend on Domain, never on each other.
+- Each feature is self-contained under `lib/features/<feature>/`
+  with `data/`, `domain/`, and `presentation/` sub-directories.
+- Shared, non-feature code lives in `lib/core/` only.
 
-**Rationale**: Enforcing unidirectional dependencies keeps the domain
-logic decoupled from infrastructure concerns, enabling independent
-testing and future backend swaps without touching business rules.
+**Rationale**: Enforcing layer boundaries keeps business logic
+portable, testable, and independent of framework or data-source
+changes.
 
-### II. Domain Purity
+### II. Contract-First Design
 
-The domain layer MUST contain only pure Dart with zero framework imports.
+Every boundary MUST define an abstract interface before any
+concrete implementation is written.
 
-- Entities MUST be immutable with `final` fields and `const` constructors.
-- Repository interfaces and use cases MUST NOT import Flutter, Supabase,
-  Dio, or any external package.
-- Use cases MUST be single-purpose with one public `call()` method. Use a
-  params class when multiple inputs are required.
-- Business logic (validation, transformations) MUST reside in use cases
-  or repositories, never in BLoCs or widgets.
+- Data sources: `<Name>DataSource` (abstract) →
+  `<Name>DataSourceImpl` (concrete).
+- Repositories: `<Name>Repository` (abstract) →
+  `<Name>RepositoryImpl` (concrete).
+- Core utilities: `ApiClient` (abstract) → `ApiClientImpl`
+  (concrete).
+- All concrete implementations MUST be registered in `core/di/`
+  via get_it and resolved through constructor injection.
 
-**Rationale**: A pure domain layer is the foundation of Clean
-Architecture. Framework-free business logic remains testable, portable,
-and comprehensible without infrastructure knowledge.
+**Rationale**: Coding against abstractions enables substitution
+for testing and future backend changes without touching consumers.
 
-### III. Structured Error Handling
+### III. Type-Safe Error Handling
 
-All error propagation MUST follow the established flow:
+Errors MUST flow through a structured pipeline; exceptions MUST
+NOT leak across layer boundaries.
 
-```
-DataSource (throws ServerException / CacheException)
-  → Repository (catches → returns Either<Failure, T>)
-    → UseCase (passes through or adds ValidationFailure)
-      → BLoC (folds Either → emits success or error state)
-        → Screen (renders based on state)
-```
+- Data sources throw `ServerException` or `CacheException`.
+- Repositories catch those exceptions and return
+  `Either<Failure, T>` (via dartz).
+- Use cases pass the `Either` through or add
+  `ValidationFailure`.
+- BLoCs fold the `Either` into success or error states.
+- Screens render based on the emitted state.
+- Repositories MUST NEVER throw; they MUST always return
+  `Either`.
 
-- Repositories MUST catch all exceptions and return `Either<Failure, T>`.
-  Exceptions MUST NOT leak past the repository boundary.
-- The failure hierarchy (`ServerFailure`, `AuthFailure`,
-  `ValidationFailure`) MUST be used; raw exception types MUST NOT reach
-  the presentation layer.
-- Error messages in the UI MUST originate from domain-layer failures,
-  not hardcoded strings.
+**Rationale**: A single, predictable error path prevents
+unhandled crashes and keeps error presentation consistent across
+the app.
 
-**Rationale**: A single, predictable error flow prevents unhandled
-exceptions from crashing the app and gives every layer a consistent
-contract for failure handling.
+### IV. Pure Domain Layer
 
-### IV. Dependency Inversion
+The domain layer MUST remain free of framework and infrastructure
+concerns.
 
-Abstract interfaces MUST be defined before concrete implementations at
-every system boundary.
+- Entities use `final` fields and `const` constructors; no
+  serialization logic.
+- Models (data layer) mirror entities and provide `fromJson()`,
+  `toJson()`, and `toEntity()`. Models MUST NOT appear in
+  presentation code.
+- Use cases expose a single public `call()` method. One use case
+  = one business action.
+- No Flutter, Supabase, Dio, or other package imports are
+  permitted in `domain/`.
 
-- Every data source, repository, and core service MUST have an abstract
-  contract (e.g., `PostsDataSource`) paired with a concrete
-  implementation (e.g., `PostsDataSourceImpl`).
-- All dependencies MUST be injected via constructors and registered
-  in `core/di/` using get_it.
-- Models MUST mirror domain entities and provide `fromJson()`,
-  `toJson()`, and `toEntity()` converters. Data models MUST NOT be used
-  directly in the presentation layer.
+**Rationale**: A pure domain layer can be reasoned about, tested,
+and reused without any runtime dependencies.
 
-**Rationale**: Programming against abstractions enables swapping
-implementations (e.g., mock data sources for testing) without modifying
-consuming code, and keeps the dependency graph clean.
+### V. Dependency Inversion
 
-### V. Convention Consistency
+All runtime dependencies MUST be injected, never instantiated
+inline.
 
-All code MUST follow the project's established naming and structural
-conventions.
+- Constructor injection is the sole mechanism for providing
+  dependencies to classes.
+- `core/di/` registers every concrete implementation with
+  get_it.
+- No class may construct its own collaborators via `new` or
+  static access (except factory constructors for deserialization
+  in models).
 
-- **Files**: `snake_case` — e.g., `posts_list_screen.dart`,
-  `auth_repository_impl.dart`.
-- **Classes**: `PascalCase` with role suffixes — `*Model`, `*Impl`,
-  `*Bloc`, `*Screen`, `*Failure`, `*Exception`.
-- **Methods/variables**: `camelCase` with underscore-prefixed privates.
-- **JSON keys**: `snake_case` matching Supabase column names.
-- Feature directories use singular nouns (`auth/`, `home/`). Layer
-  directories use plural nouns (`models/`, `screens/`, `repositories/`).
-- BLoC pattern MUST use separated event and state classes. Screens MUST
-  use `BlocBuilder` for reactive UI and `BlocListener` for side effects.
+**Rationale**: Explicit injection makes the dependency graph
+visible, testable, and reconfigurable without code changes.
 
-**Rationale**: Uniform conventions reduce cognitive overhead, make the
-codebase navigable by pattern, and prevent naming drift across features.
+## Architecture Constraints
 
-## Technical Constraints
-
-- New packages MUST NOT be added to `pubspec.yaml` without explicit
-  approval. Problems MUST be solved with existing dependencies first.
-- `core/` files MUST NOT be modified without discussing the cross-feature
-  impact, since they affect all features.
-- Supabase credentials and API keys MUST NOT be committed. Source code
-  MUST retain placeholders only.
-- The tech stack is fixed: Flutter 3.24+ / Dart 3.5+, flutter_bloc,
-  dartz, supabase_flutter, dio, get_it, shared_preferences, mocktail.
+- **No unauthorized packages.** New dependencies MUST NOT be
+  added to `pubspec.yaml` without prior approval. Solve problems
+  with the existing stack first.
+- **Model/Entity separation is mandatory.** Data models
+  (`*_model.dart`) handle serialization; domain entities handle
+  business identity. Presentation code MUST only use entities.
+- **No business logic in presentation.** Validation, data
+  transformation, and decision-making belong in use cases or
+  repositories, not in BLoCs or widgets.
+- **No hardcoded credentials.** Supabase URLs, API keys, and
+  secrets MUST remain as placeholders in source code.
+- **Core is shared infrastructure.** Changes to `lib/core/`
+  affect all features and MUST be discussed before implementation.
+- **File placement.** New code MUST go into
+  `lib/features/<feature>/` or `lib/core/`. No top-level ad-hoc
+  directories.
+- **Naming conventions.** Files use `snake_case`, classes use
+  `PascalCase`, methods/variables use `camelCase`. Suffixes
+  (`Model`, `Impl`, `Bloc`, `Screen`, `Failure`, `Exception`)
+  MUST follow the documented patterns in CLAUDE.md.
 
 ## Development Workflow
 
-- `flutter analyze` MUST be run before considering any work complete.
-- All new feature code MUST be placed in the appropriate layer within
-  `lib/features/<feature>/` or `lib/core/`.
-- Widgets MUST be kept small and reusable. Repeated UI patterns MUST be
-  extracted into `presentation/widgets/`.
-- Abstract interfaces MUST be created before their concrete
-  implementations in all cases.
-- Constructor injection MUST be used for all dependencies.
+- **Static analysis.** `flutter analyze` MUST pass before work
+  is considered complete.
+- **State management.** All features use the BLoC pattern with
+  separated event and state classes. `BlocBuilder` for reactive
+  UI; `BlocListener` for side effects.
+- **Widget granularity.** Repeated UI patterns MUST be extracted
+  into `presentation/widgets/`.
+- **Real-time updates.** Features requiring live data MUST
+  subscribe to Supabase real-time streams and dispatch update
+  events through the BLoC.
+- **Error messages.** UI MUST NOT hardcode error strings; use
+  failure messages propagated from the domain layer.
 
 ## Governance
 
-This constitution is the authoritative source of non-negotiable rules
-for the Blog App project. It supersedes informal practices and ad-hoc
-decisions when conflicts arise.
+This constitution is the authoritative source of architectural
+and process rules for the Blog App project. It supersedes any
+ad-hoc decisions or undocumented conventions.
 
-- **Amendment procedure**: Any change to this constitution MUST be
-  documented with a version bump, rationale, and sync impact report.
-  Changes to principles require MAJOR version increments. New sections
-  or material expansions require MINOR. Clarifications require PATCH.
-- **Versioning policy**: This document follows semantic versioning
-  (MAJOR.MINOR.PATCH). The Sync Impact Report at the top of this file
-  MUST be updated with every amendment.
-- **Compliance review**: All feature plans, specs, and task lists MUST
-  reference the Constitution Check gate in the plan template. Reviewers
-  MUST verify that implementations comply with these principles.
-- **Runtime guidance**: `CLAUDE.md` at the repository root serves as the
-  runtime development guidance file and MUST remain consistent with this
-  constitution.
+### Amendment Procedure
+
+1. Propose the change with a rationale and impact assessment.
+2. Update this document and increment the version per the
+   versioning policy below.
+3. Run the consistency propagation checklist (plan, spec, tasks,
+   and command templates) and update any affected artifacts.
+4. Record the change in the Sync Impact Report comment at the
+   top of this file.
+
+### Versioning Policy
+
+- **MAJOR**: Removal or backward-incompatible redefinition of a
+  principle.
+- **MINOR**: New principle or materially expanded guidance added.
+- **PATCH**: Clarifications, wording fixes, non-semantic
+  refinements.
+
+### Compliance
+
+- All implementation plans MUST include a Constitution Check gate
+  that verifies alignment with these principles before design
+  proceeds.
+- Code reviews MUST verify compliance with layer boundaries,
+  error handling flow, and naming conventions.
 
 **Version**: 1.0.0 | **Ratified**: 2026-04-07 | **Last Amended**: 2026-04-07
