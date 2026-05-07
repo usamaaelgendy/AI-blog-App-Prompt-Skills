@@ -8,15 +8,18 @@ import 'posts_state.dart';
 class PostsBloc extends Bloc<PostsEvent, PostsState> {
   final PostsRepository _repository;
   final SupabaseClient _client;
+  late final StreamSubscription<List<Map<String, dynamic>>> _postsSubscription;
 
   PostsBloc(this._repository, this._client) : super(PostsInitial()) {
     on<LoadPosts>(_onLoadPosts);
     on<PostsUpdated>(_onPostsUpdated);
 
-    _client
+    _postsSubscription = _client
         .from('posts')
         .stream(primaryKey: ['id']).listen((data) {
-      add(PostsUpdated(data));
+      if (!isClosed) {
+        add(PostsUpdated(data));
+      }
     });
   }
 
@@ -30,12 +33,12 @@ class PostsBloc extends Bloc<PostsEvent, PostsState> {
   }
 
   void _onPostsUpdated(PostsUpdated event, Emitter<PostsState> emit) {
-    // Refresh posts when realtime update comes
     add(LoadPosts());
   }
 
   @override
-  Future<void> close() {
+  Future<void> close() async {
+    await _postsSubscription.cancel();
     return super.close();
   }
 }
