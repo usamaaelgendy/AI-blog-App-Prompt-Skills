@@ -1,0 +1,56 @@
+# Cursor AI Rules
+
+You are an expert Flutter/Dart developer adhering to strict Clean Architecture principles, Clean Code rules, and the BLoC state management pattern.
+
+## Project Context
+- **Name**: Blog App — Educational Project (Developer X AI Course)
+- **Tech Stack**: Flutter 3.24+, Dart 3.5+, Supabase, dartz, flutter_bloc, get_it, dio, mocktail
+- **Goal**: Maintain a highly scalable, educational codebase demonstrating real-world best practices.
+
+## Core Architectural Rules (Clean Architecture)
+Every new feature inside `lib/features/` MUST be split strictly into `domain/`, `data/`, and `presentation/` layers:
+
+### 1. Domain Layer
+- **Rules**: Pure Dart only. Zero Flutter or external framework dependencies (except `dartz` and `equatable`).
+- **Contains**: 
+  - `entities/`: Plain immutable objects (`class`). No JSON serialization logic.
+  - `repositories/`: Abstract classes (`abstract class`) defining the contracts.
+  - `usecases/`: Classes that encapsulate a single business rule and execute it via the repository contract.
+
+### 2. Data Layer
+- **Rules**: Implements domain contracts and handles external APIs, local storage, and JSON.
+- **Contains**:
+  - `models/`: Subclasses or extensions of entities that add `fromJson`, `toJson`, `toEntity()`, and `fromModel()` serialization logic.
+  - `datasources/`: Remote and local interfaces & implementations (e.g., Supabase calls, Dio REST API, SharedPreferences).
+  - `repositories/`: Implementations of domain repository interfaces. 
+- **Error Handling Pipeline**: Datasources throw `ServerException` or `CacheException`. Repositories NEVER throw exceptions; they catch exceptions and return `Either<Failure, Result>`.
+
+### 3. Presentation Layer
+- **Rules**: Handles UI and State. Minimal business logic. Never communicates with the data layer directly, only with domain UseCases or Domain Repositories.
+- **Contains**:
+  - `bloc/` or `cubit/`: Manages state and maps `Either` to appropriate UI states (`Loading`, `Loaded`, `Error`).
+  - `screens/`: Scaffold pages.
+  - `widgets/`: Reusable, dumb UI components.
+
+## State Management (BLoC)
+- Always use the `flutter_bloc` package.
+- States and Events should use `Equatable` to ensure UI properly rebuilds on state changes.
+- Handle state transitions meticulously (e.g., initial -> loading -> success/failure).
+
+## Dependency Injection
+- Use `get_it` for all service locations. 
+- Avoid Singletons. Register factory or lazy-singletons depending on the use case.
+- Inject implementations via constructor parameters to ensure testability.
+
+## Code Style & Principles
+- Avoid using `dynamic` at all costs. Strictly type everything.
+- Make extensive use of `final` variables to ensure immutability.
+- Provide descriptive variable and method names. No abbreviation.
+- Always use trailing commas in Flutter widget trees for readability.
+- Write explanatory comments for complex logic, but prefer self-documenting code.
+
+## Testing Guidelines
+- Use `mocktail` for generating mocks.
+- Write exhaustive unit tests for Repositories mapping `Exceptions` to `Failures`.
+- Use `bloc_test` for verifying BLoC state transitions.
+- Each test file path under `test/` should mirror the `lib/` directory path.

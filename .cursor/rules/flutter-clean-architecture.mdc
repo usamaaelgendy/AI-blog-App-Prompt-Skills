@@ -1,0 +1,27 @@
+---
+description: Flutter Clean Architecture, BLoC, and blog_app stack conventions
+globs: lib/**/*.dart
+alwaysApply: false
+---
+
+# blog_app — Flutter conventions
+
+## Layers (Clean Architecture)
+
+- **domain/** — entities, repository **abstract** contracts, use cases only. No `flutter`, `dio`, or Supabase imports.
+- **data/** — models (with `toEntity()` / `fromJson` as used today), datasources (abstract + impl), repository **implementations**. Catch `ServerException` (and peers from `core/errors/exceptions.dart`) here; return `Either<Failure, T>` using `Failure` subclasses from `core/errors/failures.dart`.
+- **presentation/** — screens, widgets, BLoC (`bloc/` with `*_event.dart`, `*_state.dart`, `*_bloc.dart`).
+
+## Presentation
+
+- Use **flutter_bloc** for state; keep events and states in dedicated files next to the bloc.
+- UI calls use cases or repository abstractions via existing DI (`get_it`) — avoid constructing datasources inside widgets.
+
+## Core & networking
+
+- HTTP goes through `core/network/` (`ApiClient` / `ApiClientImpl`). Feature datasources depend on abstractions, not raw wiring scattered in UI.
+
+## Style of changes
+
+- Match existing naming, imports, and error mapping (e.g. `ServerException` → `ServerFailure`).
+- Prefer small, lesson-friendly diffs; this repo is a **course reference** — keep structure easy to follow.

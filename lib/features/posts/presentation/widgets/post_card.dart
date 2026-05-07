@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../domain/entities/post.dart';
+import '../../../bookmarks/presentation/widgets/bookmark_icon_button.dart';
 
 class PostCard extends StatelessWidget {
   final Post post;
@@ -20,10 +21,7 @@ class PostCard extends StatelessWidget {
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
-        trailing: Text(
-          '${post.createdAt.day}/${post.createdAt.month}',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
+        trailing: BookmarkIconButton(postId: post.id),
         onTap: () {
           // TODO: Navigate to post details
         },

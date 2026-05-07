@@ -14,7 +14,7 @@ class Logger {
 class UserService {
   static const _baseUrl = 'https://jsonplaceholder.typicode.com';
 
-  Future<List<Map<String, dynamic>>?> getUsers() async {
+  Future<List<Map<String, dynamic>>> getUsers() async {
     try {
       final response = await http.get(Uri.parse('$_baseUrl/users'));
       if (response.statusCode == 200) {
@@ -22,10 +22,10 @@ class UserService {
         return List<Map<String, dynamic>>.from(jsonDecode(response.body));
       }
       Logger.error('Failed to fetch users: ${response.statusCode}');
-      return null;
+      return [];
     } catch (e) {
       Logger.error('Exception fetching users: $e');
-      return null;
+      return [];
     }
   }
 }
